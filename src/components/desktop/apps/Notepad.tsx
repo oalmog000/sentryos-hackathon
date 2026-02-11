@@ -1,6 +1,8 @@
 'use client'
 
 import ReactMarkdown from 'react-markdown'
+import * as Sentry from '@sentry/nextjs'
+import { useEffect } from 'react'
 
 interface NotepadProps {
   content: string
@@ -8,6 +10,19 @@ interface NotepadProps {
 }
 
 export function Notepad({ content, filename }: NotepadProps) {
+  useEffect(() => {
+    Sentry.addBreadcrumb({
+      category: 'notepad',
+      message: `Notepad opened: ${filename}`,
+      level: 'info',
+      data: { filename, contentLength: content.length }
+    })
+    Sentry.metrics.increment('notepad.opened', 1, {
+      tags: { filename }
+    })
+    Sentry.metrics.distribution('notepad.content_length', content.length)
+  }, [filename, content.length])
+
   return (
     <div className="h-full flex flex-col bg-[#1e1a2a]">
       {/* Menu bar */}

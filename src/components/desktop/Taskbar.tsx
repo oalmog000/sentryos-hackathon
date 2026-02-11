@@ -3,6 +3,7 @@
 import { Clock } from 'lucide-react'
 import { useWindowManager } from './WindowManager'
 import { useEffect, useState } from 'react'
+import * as Sentry from '@sentry/nextjs'
 
 export function Taskbar() {
   const { windows, restoreWindow, focusWindow } = useWindowManager()
@@ -23,6 +24,16 @@ export function Taskbar() {
   }, [])
 
   const handleWindowClick = (id: string, isMinimized: boolean) => {
+    const window = windows.find(w => w.id === id)
+    Sentry.addBreadcrumb({
+      category: 'taskbar',
+      message: `Taskbar window clicked: ${window?.title || id}`,
+      level: 'info',
+      data: { windowId: id, isMinimized, action: isMinimized ? 'restore' : 'focus' }
+    })
+    Sentry.metrics.increment('taskbar.window.clicked', 1, {
+      tags: { windowId: id, action: isMinimized ? 'restore' : 'focus' }
+    })
     if (isMinimized) {
       restoreWindow(id)
     } else {

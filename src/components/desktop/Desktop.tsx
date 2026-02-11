@@ -7,7 +7,8 @@ import { DesktopIcon } from './DesktopIcon'
 import { Notepad } from './apps/Notepad'
 import { FolderView, FolderItem } from './apps/FolderView'
 import { Chat } from './apps/Chat'
-import { useState } from 'react'
+import { useState, useEffect } from 'react'
+import * as Sentry from '@sentry/nextjs'
 
 const INSTALL_GUIDE_CONTENT = `# SentryOS Install Guide
 
@@ -58,7 +59,28 @@ function DesktopContent() {
   const { windows, openWindow } = useWindowManager()
   const [selectedIcon, setSelectedIcon] = useState<string | null>(null)
 
+  // Track desktop load
+  useEffect(() => {
+    Sentry.captureMessage('SentryOS Desktop loaded', {
+      level: 'info',
+      tags: { component: 'Desktop' }
+    })
+    Sentry.metrics.increment('desktop.loaded', 1)
+  }, [])
+
   const openInstallGuide = () => {
+    Sentry.addBreadcrumb({
+      category: 'desktop',
+      message: 'Opening Install Guide',
+      level: 'info'
+    })
+    Sentry.metrics.increment('desktop.app.launched', 1, {
+      tags: { appName: 'install-guide', appType: 'notepad' }
+    })
+    Sentry.captureMessage('App launched: Install Guide', {
+      level: 'info',
+      tags: { app: 'install-guide', type: 'notepad' }
+    })
     openWindow({
       id: 'install-guide',
       title: 'Install Guide.md',
@@ -76,6 +98,18 @@ function DesktopContent() {
   }
 
   const openChatWindow = () => {
+    Sentry.addBreadcrumb({
+      category: 'desktop',
+      message: 'Opening Chat',
+      level: 'info'
+    })
+    Sentry.metrics.increment('desktop.app.launched', 1, {
+      tags: { appName: 'chat', appType: 'chat' }
+    })
+    Sentry.captureMessage('App launched: Chat', {
+      level: 'info',
+      tags: { app: 'chat', type: 'chat' }
+    })
     openWindow({
       id: 'chat',
       title: 'SentryOS Chat',
@@ -95,6 +129,20 @@ function DesktopContent() {
   const openAgentsFolder = () => {
     const agentsFolderItems: FolderItem[] = []
 
+    Sentry.addBreadcrumb({
+      category: 'desktop',
+      message: 'Opening Agents folder',
+      level: 'info'
+    })
+    Sentry.metrics.increment('desktop.app.launched', 1, {
+      tags: { appName: 'agents-folder', appType: 'folder' }
+    })
+    Sentry.captureMessage('App launched: Agents Folder', {
+      level: 'info',
+      tags: { app: 'agents-folder', type: 'folder' },
+      extra: { itemCount: agentsFolderItems.length }
+    })
+
     openWindow({
       id: 'agents-folder',
       title: 'Agents',
@@ -112,7 +160,28 @@ function DesktopContent() {
   }
 
   const handleDesktopClick = () => {
+    if (selectedIcon) {
+      Sentry.addBreadcrumb({
+        category: 'desktop',
+        message: 'Desktop icon deselected',
+        level: 'debug',
+        data: { previousSelection: selectedIcon }
+      })
+    }
     setSelectedIcon(null)
+  }
+
+  const handleIconSelect = (iconId: string) => {
+    Sentry.addBreadcrumb({
+      category: 'desktop',
+      message: `Desktop icon selected: ${iconId}`,
+      level: 'debug',
+      data: { iconId }
+    })
+    Sentry.metrics.increment('desktop.icon.selected', 1, {
+      tags: { iconId }
+    })
+    setSelectedIcon(iconId)
   }
 
   return (
@@ -144,7 +213,7 @@ function DesktopContent() {
           icon="document"
           onDoubleClick={openInstallGuide}
           selected={selectedIcon === 'install-guide'}
-          onSelect={() => setSelectedIcon('install-guide')}
+          onSelect={() => handleIconSelect('install-guide')}
         />
         <DesktopIcon
           id="agents-folder"
@@ -152,7 +221,7 @@ function DesktopContent() {
           icon="folder"
           onDoubleClick={openAgentsFolder}
           selected={selectedIcon === 'agents-folder'}
-          onSelect={() => setSelectedIcon('agents-folder')}
+          onSelect={() => handleIconSelect('agents-folder')}
         />
         <DesktopIcon
           id="chat"
@@ -160,7 +229,7 @@ function DesktopContent() {
           icon="chat"
           onDoubleClick={openChatWindow}
           selected={selectedIcon === 'chat'}
-          onSelect={() => setSelectedIcon('chat')}
+          onSelect={() => handleIconSelect('chat')}
         />
       </div>
 

@@ -1,7 +1,8 @@
 'use client'
 
 import { Folder, FileText, MessageCircle } from 'lucide-react'
-import { useState, useRef } from 'react'
+import { useState, useRef, useEffect } from 'react'
+import * as Sentry from '@sentry/nextjs'
 
 export interface FolderItem {
   id: string
@@ -28,6 +29,21 @@ export function FolderView({ items, folderName }: FolderViewProps) {
   const clickCountRef = useRef(0)
   const lastClickedIdRef = useRef<string | null>(null)
 
+  useEffect(() => {
+    Sentry.addBreadcrumb({
+      category: 'folder',
+      message: `Folder opened: ${folderName}`,
+      level: 'info',
+      data: { folderName, itemCount: items.length }
+    })
+    Sentry.metrics.increment('folder.opened', 1, {
+      tags: { folderName }
+    })
+    Sentry.metrics.gauge('folder.item_count', items.length, {
+      tags: { folderName }
+    })
+  }, [folderName, items.length])
+
   const handleItemClick = (e: React.MouseEvent, item: FolderItem) => {
     e.preventDefault()
     e.stopPropagation()
@@ -48,6 +64,15 @@ export function FolderView({ items, folderName }: FolderViewProps) {
       clickTimeoutRef.current = setTimeout(() => {
         // Single click - just select
         if (clickCountRef.current === 1) {
+          Sentry.addBreadcrumb({
+            category: 'folder',
+            message: `Folder item selected: ${item.name}`,
+            level: 'debug',
+            data: { itemId: item.id, itemType: item.type }
+          })
+          Sentry.metrics.increment('folder.item.selected', 1, {
+            tags: { itemType: item.type }
+          })
           setSelectedId(item.id)
         }
         clickCountRef.current = 0
@@ -58,6 +83,15 @@ export function FolderView({ items, folderName }: FolderViewProps) {
         clearTimeout(clickTimeoutRef.current)
       }
       clickCountRef.current = 0
+      Sentry.addBreadcrumb({
+        category: 'folder',
+        message: `Folder item opened: ${item.name}`,
+        level: 'info',
+        data: { itemId: item.id, itemType: item.type }
+      })
+      Sentry.metrics.increment('folder.item.opened', 1, {
+        tags: { itemType: item.type }
+      })
       setSelectedId(item.id)
       item.onOpen?.()
     }

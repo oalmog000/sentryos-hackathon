@@ -1,6 +1,7 @@
 'use client'
 
-import { useState, useCallback, createContext, useContext, ReactNode } from 'react'
+import { useState, useCallback, createContext, useContext, ReactNode, useEffect } from 'react'
+import * as Sentry from '@sentry/nextjs'
 import { WindowState } from './types'
 
 interface WindowManagerContextType {
@@ -30,25 +31,62 @@ export function WindowManagerProvider({ children }: { children: ReactNode }) {
   const [windows, setWindows] = useState<WindowState[]>([])
   const [topZIndex, setTopZIndex] = useState(100)
 
+  // Track window count as a gauge metric
+  useEffect(() => {
+    const openCount = windows.filter(w => !w.isMinimized).length
+    const minimizedCount = windows.filter(w => w.isMinimized).length
+
+    Sentry.metrics.gauge('window.count.total', windows.length)
+    Sentry.metrics.gauge('window.count.open', openCount)
+    Sentry.metrics.gauge('window.count.minimized', minimizedCount)
+  }, [windows])
+
   const openWindow = useCallback((window: Omit<WindowState, 'zIndex' | 'isFocused'>) => {
+    Sentry.addBreadcrumb({
+      category: 'window',
+      message: `Opening window: ${window.title}`,
+      level: 'info',
+      data: { windowId: window.id, windowTitle: window.title }
+    })
+
+    Sentry.metrics.increment('window.open', 1, {
+      tags: { windowId: window.id, windowTitle: window.title }
+    })
+
     setTopZIndex(currentZ => {
       const newZ = currentZ + 1
       setWindows(prev => {
         const existing = prev.find(w => w.id === window.id)
         if (existing) {
           if (existing.isMinimized) {
+            Sentry.captureMessage('Window restored from minimized', {
+              level: 'info',
+              tags: { windowId: window.id, windowTitle: window.title }
+            })
+            Sentry.metrics.increment('window.restore', 1, {
+              tags: { windowId: window.id }
+            })
             return prev.map(w =>
               w.id === window.id
                 ? { ...w, isMinimized: false, isFocused: true, zIndex: newZ }
                 : { ...w, isFocused: false }
             )
           }
+          Sentry.captureMessage('Window refocused', {
+            level: 'info',
+            tags: { windowId: window.id, windowTitle: window.title }
+          })
           return prev.map(w =>
             w.id === window.id
               ? { ...w, isFocused: true, zIndex: newZ }
               : { ...w, isFocused: false }
           )
         }
+        Sentry.captureMessage('New window opened', {
+          level: 'info',
+          tags: { windowId: window.id, windowTitle: window.title },
+          extra: { width: window.width, height: window.height, position: { x: window.x, y: window.y } }
+        })
         return [
           ...prev.map(w => ({ ...w, isFocused: false })),
           { ...window, zIndex: newZ, isFocused: true }
@@ -59,20 +97,51 @@ export function WindowManagerProvider({ children }: { children: ReactNode }) {
   }, [])
 
   const closeWindow = useCallback((id: string) => {
+    const window = windows.find(w => w.id === id)
+    Sentry.addBreadcrumb({
+      category: 'window',
+      message: `Closing window: ${window?.title || id}`,
+      level: 'info',
+      data: { windowId: id }
+    })
+    Sentry.metrics.increment('window.close', 1, { tags: { windowId: id } })
+    Sentry.captureMessage('Window closed', {
+      level: 'info',
+      tags: { windowId: id, windowTitle: window?.title }
+    })
     setWindows(prev => prev.filter(w => w.id !== id))
-  }, [])
+  }, [windows])
 
   const minimizeWindow = useCallback((id: string) => {
+    const window = windows.find(w => w.id === id)
+    Sentry.addBreadcrumb({
+      category: 'window',
+      message: `Minimizing window: ${window?.title || id}`,
+      level: 'info',
+      data: { windowId: id }
+    })
+    Sentry.metrics.increment('window.minimize', 1, { tags: { windowId: id } })
     setWindows(prev => prev.map(w =>
       w.id === id ? { ...w, isMinimized: true, isFocused: false } : w
     ))
-  }, [])
+  }, [windows])
 
   const maximizeWindow = useCallback((id: string) => {
+    const window = windows.find(w => w.id === id)
+    const isMaximizing = !window?.isMaximized
+    Sentry.addBreadcrumb({
+      category: 'window',
+      message: `${isMaximizing ? 'Maximizing' : 'Restoring'} window: ${window?.title || id}`,
+      level: 'info',
+      data: { windowId: id, action: isMaximizing ? 'maximize' : 'restore' }
+    })
+    Sentry.metrics.increment(isMaximizing ? 'window.maximize' : 'window.restore_size', 1, {
+      tags: { windowId: id }
+    })
     setWindows(prev => prev.map(w =>
       w.id === id ? { ...w, isMaximized: !w.isMaximized } : w
     ))
-  }, [])
+  }, [windows])
 
   const restoreWindow = useCallback((id: string) => {
     setTopZIndex(currentZ => {
@@ -99,12 +168,27 @@ export function WindowManagerProvider({ children }: { children: ReactNode }) {
   }, [])
 
   const updateWindowPosition = useCallback((id: string, x: number, y: number) => {
+    Sentry.addBreadcrumb({
+      category: 'window',
+      message: `Window position updated`,
+      level: 'debug',
+      data: { windowId: id, x, y }
+    })
     setWindows(prev => prev.map(w =>
       w.id === id ? { ...w, x, y } : w
     ))
   }, [])
 
   const updateWindowSize = useCallback((id: string, width: number, height: number) => {
+    Sentry.addBreadcrumb({
+      category: 'window',
+      message: `Window size updated`,
+      level: 'debug',
+      data: { windowId: id, width, height }
+    })
+    Sentry.metrics.gauge('window.size', width * height, {
+      tags: { windowId: id, dimension: 'area' }
+    })
     setWindows(prev => prev.map(w =>
       w.id === id ? { ...w, width, height } : w
     ))
