@@ -1,0 +1,6 @@
+export { Desktop } from './Desktop'
+export { Window } from './Window'
+export { Taskbar } from './Taskbar'
+export { DesktopIcon } from './DesktopIcon'
+export { WindowManagerProvider, useWindowManager } from './WindowManager'
+export type { WindowState, DesktopIconType } from './types'
