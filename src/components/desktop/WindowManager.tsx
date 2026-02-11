@@ -2,6 +2,7 @@
 
 import { useState, useCallback, createContext, useContext, ReactNode, useEffect } from 'react'
 import * as Sentry from '@sentry/nextjs'
+import { metrics } from '@/lib/metrics'
 import { WindowState } from './types'
 
 interface WindowManagerContextType {
@@ -36,9 +37,9 @@ export function WindowManagerProvider({ children }: { children: ReactNode }) {
     const openCount = windows.filter(w => !w.isMinimized).length
     const minimizedCount = windows.filter(w => w.isMinimized).length
 
-    Sentry.metrics.gauge('window.count.total', windows.length)
-    Sentry.metrics.gauge('window.count.open', openCount)
-    Sentry.metrics.gauge('window.count.minimized', minimizedCount)
+    metrics.gauge('window.count.total', windows.length)
+    metrics.gauge('window.count.open', openCount)
+    metrics.gauge('window.count.minimized', minimizedCount)
   }, [windows])
 
   const openWindow = useCallback((window: Omit<WindowState, 'zIndex' | 'isFocused'>) => {
@@ -46,11 +47,7 @@ export function WindowManagerProvider({ children }: { children: ReactNode }) {
       category: 'window',
       message: `Opening window: ${window.title}`,
       level: 'info',
-      data: { windowId: window.id, windowTitle: window.title }
-    })
-
-    Sentry.metrics.increment('window.open', 1, {
-      tags: { windowId: window.id, windowTitle: window.title }
+      data: { windowId: window.id, windowTitle: window.title, metric: 'window.open' }
     })
 
     setTopZIndex(currentZ => {
@@ -63,10 +60,7 @@ export function WindowManagerProvider({ children }: { children: ReactNode }) {
               level: 'info',
               tags: { windowId: window.id, windowTitle: window.title }
             })
-            Sentry.metrics.increment('window.restore', 1, {
-              tags: { windowId: window.id }
-            })
-            return prev.map(w =>
+                        return prev.map(w =>
               w.id === window.id
                 ? { ...w, isMinimized: false, isFocused: true, zIndex: newZ }
                 : { ...w, isFocused: false }
@@ -104,7 +98,7 @@ export function WindowManagerProvider({ children }: { children: ReactNode }) {
       level: 'info',
       data: { windowId: id }
     })
-    Sentry.metrics.increment('window.close', 1, { tags: { windowId: id } })
+    metrics.increment('window.close', 1, { tags: { windowId: id } })
     Sentry.captureMessage('Window closed', {
       level: 'info',
       tags: { windowId: id, windowTitle: window?.title }
@@ -120,7 +114,7 @@ export function WindowManagerProvider({ children }: { children: ReactNode }) {
       level: 'info',
       data: { windowId: id }
     })
-    Sentry.metrics.increment('window.minimize', 1, { tags: { windowId: id } })
+    metrics.increment('window.minimize', 1, { tags: { windowId: id } })
     setWindows(prev => prev.map(w =>
       w.id === id ? { ...w, isMinimized: true, isFocused: false } : w
     ))
@@ -135,7 +129,7 @@ export function WindowManagerProvider({ children }: { children: ReactNode }) {
       level: 'info',
       data: { windowId: id, action: isMaximizing ? 'maximize' : 'restore' }
     })
-    Sentry.metrics.increment(isMaximizing ? 'window.maximize' : 'window.restore_size', 1, {
+    metrics.increment(isMaximizing ? 'window.maximize' : 'window.restore_size', 1, {
       tags: { windowId: id }
     })
     setWindows(prev => prev.map(w =>
@@ -186,7 +180,7 @@ export function WindowManagerProvider({ children }: { children: ReactNode }) {
       level: 'debug',
       data: { windowId: id, width, height }
     })
-    Sentry.metrics.gauge('window.size', width * height, {
+    metrics.gauge('window.size', width * height, {
       tags: { windowId: id, dimension: 'area' }
     })
     setWindows(prev => prev.map(w =>

@@ -9,6 +9,7 @@ import { FolderView, FolderItem } from './apps/FolderView'
 import { Chat } from './apps/Chat'
 import { useState, useEffect } from 'react'
 import * as Sentry from '@sentry/nextjs'
+import { metrics } from '@/lib/metrics'
 
 const INSTALL_GUIDE_CONTENT = `# SentryOS Install Guide
 
@@ -65,7 +66,7 @@ function DesktopContent() {
       level: 'info',
       tags: { component: 'Desktop' }
     })
-    Sentry.metrics.increment('desktop.loaded', 1)
+    metrics.increment('desktop.loaded', 1)
   }, [])
 
   const openInstallGuide = () => {
@@ -74,7 +75,7 @@ function DesktopContent() {
       message: 'Opening Install Guide',
       level: 'info'
     })
-    Sentry.metrics.increment('desktop.app.launched', 1, {
+    metrics.increment('desktop.app.launched', 1, {
       tags: { appName: 'install-guide', appType: 'notepad' }
     })
     Sentry.captureMessage('App launched: Install Guide', {
@@ -103,7 +104,7 @@ function DesktopContent() {
       message: 'Opening Chat',
       level: 'info'
     })
-    Sentry.metrics.increment('desktop.app.launched', 1, {
+    metrics.increment('desktop.app.launched', 1, {
       tags: { appName: 'chat', appType: 'chat' }
     })
     Sentry.captureMessage('App launched: Chat', {
@@ -134,7 +135,7 @@ function DesktopContent() {
       message: 'Opening Agents folder',
       level: 'info'
     })
-    Sentry.metrics.increment('desktop.app.launched', 1, {
+    metrics.increment('desktop.app.launched', 1, {
       tags: { appName: 'agents-folder', appType: 'folder' }
     })
     Sentry.captureMessage('App launched: Agents Folder', {
@@ -178,7 +179,7 @@ function DesktopContent() {
       level: 'debug',
       data: { iconId }
     })
-    Sentry.metrics.increment('desktop.icon.selected', 1, {
+    metrics.increment('desktop.icon.selected', 1, {
       tags: { iconId }
     })
     setSelectedIcon(iconId)

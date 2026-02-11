@@ -4,6 +4,7 @@ import { useState, useEffect } from 'react'
 import { Rnd } from 'react-rnd'
 import { X, Minus, Square, Copy } from 'lucide-react'
 import * as Sentry from '@sentry/nextjs'
+import { metrics } from '@/lib/metrics'
 import { WindowState } from './types'
 import { useWindowManager } from './WindowManager'
 
@@ -60,7 +61,7 @@ export function Window({ window: win }: WindowProps) {
       }}
       onDragStop={(_e, d) => {
         if (!win.isMaximized) {
-          Sentry.metrics.increment('window.dragged', 1, {
+          metrics.increment('window.dragged', 1, {
             tags: { windowId: win.id }
           })
           updateWindowPosition(win.id, d.x, d.y)
@@ -78,7 +79,7 @@ export function Window({ window: win }: WindowProps) {
               newHeight: ref.offsetHeight
             }
           })
-          Sentry.metrics.increment('window.resized', 1, {
+          metrics.increment('window.resized', 1, {
             tags: { windowId: win.id }
           })
           updateWindowSize(win.id, ref.offsetWidth, ref.offsetHeight)

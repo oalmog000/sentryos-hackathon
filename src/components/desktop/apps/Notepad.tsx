@@ -2,6 +2,7 @@
 
 import ReactMarkdown from 'react-markdown'
 import * as Sentry from '@sentry/nextjs'
+import { metrics } from '@/lib/metrics'
 import { useEffect } from 'react'
 
 interface NotepadProps {
@@ -17,10 +18,10 @@ export function Notepad({ content, filename }: NotepadProps) {
       level: 'info',
       data: { filename, contentLength: content.length }
     })
-    Sentry.metrics.increment('notepad.opened', 1, {
+    metrics.increment('notepad.opened', 1, {
       tags: { filename }
     })
-    Sentry.metrics.distribution('notepad.content_length', content.length)
+    metrics.distribution('notepad.content_length', content.length)
   }, [filename, content.length])
 
   return (

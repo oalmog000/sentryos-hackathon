@@ -4,6 +4,7 @@ import { Clock } from 'lucide-react'
 import { useWindowManager } from './WindowManager'
 import { useEffect, useState } from 'react'
 import * as Sentry from '@sentry/nextjs'
+import { metrics } from '@/lib/metrics'
 
 export function Taskbar() {
   const { windows, restoreWindow, focusWindow } = useWindowManager()
@@ -31,7 +32,7 @@ export function Taskbar() {
       level: 'info',
       data: { windowId: id, isMinimized, action: isMinimized ? 'restore' : 'focus' }
     })
-    Sentry.metrics.increment('taskbar.window.clicked', 1, {
+    metrics.increment('taskbar.window.clicked', 1, {
       tags: { windowId: id, action: isMinimized ? 'restore' : 'focus' }
     })
     if (isMinimized) {

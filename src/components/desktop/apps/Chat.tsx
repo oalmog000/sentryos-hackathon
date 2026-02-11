@@ -7,6 +7,7 @@ import remarkGfm from 'remark-gfm'
 import { Prism as SyntaxHighlighter } from 'react-syntax-highlighter'
 import { oneDark } from 'react-syntax-highlighter/dist/esm/styles/prism'
 import * as Sentry from '@sentry/nextjs'
+import { metrics } from '@/lib/metrics'
 
 interface Message {
   id: string
@@ -86,11 +87,11 @@ export function Chat() {
       data: { messageLength: input.trim().length, messageId: userMessage.id }
     })
 
-    Sentry.metrics.increment('chat.message.sent', 1, {
+    metrics.increment('chat.message.sent', 1, {
       tags: { role: 'user' }
     })
 
-    Sentry.metrics.distribution('chat.message.length', input.trim().length, {
+    metrics.distribution('chat.message.length', input.trim().length, {
       tags: { role: 'user' }
     })
 
@@ -127,14 +128,14 @@ export function Chat() {
           tags: { status: response.status },
           extra: { statusText: response.statusText }
         })
-        Sentry.metrics.increment('chat.api.error', 1, {
+        metrics.increment('chat.api.error', 1, {
           tags: { status: response.status.toString() }
         })
         throw new Error('Failed to get response')
       }
 
       const responseTime = Date.now() - requestStartTime
-      Sentry.metrics.distribution('chat.api.response_time', responseTime, {
+      metrics.distribution('chat.api.response_time', responseTime, {
         unit: 'millisecond'
       })
 
@@ -188,7 +189,7 @@ export function Chat() {
                   level: 'info',
                   data: { toolName: parsed.tool }
                 })
-                Sentry.metrics.increment('chat.tool.started', 1, {
+                metrics.increment('chat.tool.started', 1, {
                   tags: { toolName: parsed.tool }
                 })
                 setCurrentTool({
@@ -210,13 +211,13 @@ export function Chat() {
                     totalTimeMs: totalTime
                   }
                 })
-                Sentry.metrics.distribution('chat.response.total_time', totalTime, {
+                metrics.distribution('chat.response.total_time', totalTime, {
                   unit: 'millisecond'
                 })
-                Sentry.metrics.distribution('chat.response.length', streamingContent.length, {
+                metrics.distribution('chat.response.length', streamingContent.length, {
                   tags: { role: 'assistant' }
                 })
-                Sentry.metrics.increment('chat.message.received', 1, {
+                metrics.increment('chat.message.received', 1, {
                   tags: { role: 'assistant' }
                 })
                 setCurrentTool(null)
@@ -226,7 +227,7 @@ export function Chat() {
                   tags: { action: 'chat_error' },
                   extra: { errorMessage: parsed.message }
                 })
-                Sentry.metrics.increment('chat.stream.error', 1)
+                metrics.increment('chat.stream.error', 1)
                 streamingContent = 'Sorry, I encountered an error processing your request.'
                 setMessages(prev => prev.map(msg =>
                   msg.id === streamingMessageId
@@ -251,7 +252,7 @@ export function Chat() {
         tags: { component: 'Chat', action: 'handleSubmit' },
         extra: { messageId: userMessage.id, messageLength: input.trim().length }
       })
-      Sentry.metrics.increment('chat.error', 1, {
+      metrics.increment('chat.error', 1, {
         tags: { errorType: 'unhandled' }
       })
       const errorMessage: Message = {

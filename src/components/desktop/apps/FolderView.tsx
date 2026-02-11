@@ -3,6 +3,7 @@
 import { Folder, FileText, MessageCircle } from 'lucide-react'
 import { useState, useRef, useEffect } from 'react'
 import * as Sentry from '@sentry/nextjs'
+import { metrics } from '@/lib/metrics'
 
 export interface FolderItem {
   id: string
@@ -36,10 +37,10 @@ export function FolderView({ items, folderName }: FolderViewProps) {
       level: 'info',
       data: { folderName, itemCount: items.length }
     })
-    Sentry.metrics.increment('folder.opened', 1, {
+    metrics.increment('folder.opened', 1, {
       tags: { folderName }
     })
-    Sentry.metrics.gauge('folder.item_count', items.length, {
+    metrics.gauge('folder.item_count', items.length, {
       tags: { folderName }
     })
   }, [folderName, items.length])
@@ -70,7 +71,7 @@ export function FolderView({ items, folderName }: FolderViewProps) {
             level: 'debug',
             data: { itemId: item.id, itemType: item.type }
           })
-          Sentry.metrics.increment('folder.item.selected', 1, {
+          metrics.increment('folder.item.selected', 1, {
             tags: { itemType: item.type }
           })
           setSelectedId(item.id)
@@ -89,7 +90,7 @@ export function FolderView({ items, folderName }: FolderViewProps) {
         level: 'info',
         data: { itemId: item.id, itemType: item.type }
       })
-      Sentry.metrics.increment('folder.item.opened', 1, {
+      metrics.increment('folder.item.opened', 1, {
         tags: { itemType: item.type }
       })
       setSelectedId(item.id)

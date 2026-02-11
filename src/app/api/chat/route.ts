@@ -1,5 +1,6 @@
 import { query } from '@anthropic-ai/claude-agent-sdk'
 import * as Sentry from '@sentry/nextjs'
+import { metrics } from '@/lib/metrics'
 
 const SYSTEM_PROMPT = `You are a helpful personal assistant designed to help with general research, questions, and tasks.
 
@@ -32,7 +33,7 @@ export async function POST(request: Request) {
       level: 'info'
     })
 
-    Sentry.metrics.increment('api.chat.request', 1)
+    metrics.increment('api.chat.request', 1)
 
     const { messages } = await request.json() as { messages: MessageInput[] }
 
@@ -41,7 +42,7 @@ export async function POST(request: Request) {
         level: 'warning',
         tags: { endpoint: '/api/chat', error: 'validation' }
       })
-      Sentry.metrics.increment('api.chat.error', 1, {
+      metrics.increment('api.chat.error', 1, {
         tags: { errorType: 'validation', reason: 'missing_messages' }
       })
       return new Response(
@@ -50,7 +51,7 @@ export async function POST(request: Request) {
       )
     }
 
-    Sentry.metrics.distribution('api.chat.message_count', messages.length)
+    metrics.distribution('api.chat.message_count', messages.length)
 
     // Get the last user message
     const lastUserMessage = messages.filter(m => m.role === 'user').pop()
@@ -60,7 +61,7 @@ export async function POST(request: Request) {
         tags: { endpoint: '/api/chat', error: 'validation' },
         extra: { messageCount: messages.length }
       })
-      Sentry.metrics.increment('api.chat.error', 1, {
+      metrics.increment('api.chat.error', 1, {
         tags: { errorType: 'validation', reason: 'no_user_message' }
       })
       return new Response(
@@ -144,7 +145,7 @@ export async function POST(request: Request) {
                       level: 'info',
                       data: { toolName: block.name }
                     })
-                    Sentry.metrics.increment('api.chat.tool_used', 1, {
+                    metrics.increment('api.chat.tool_used', 1, {
                       tags: { toolName: block.name }
                     })
                     controller.enqueue(encoder.encode(
@@ -174,12 +175,12 @@ export async function POST(request: Request) {
                   textChunks: textChunkCount
                 }
               })
-              Sentry.metrics.distribution('api.chat.stream_duration', totalStreamTime, {
+              metrics.distribution('api.chat.stream_duration', totalStreamTime, {
                 unit: 'millisecond'
               })
-              Sentry.metrics.distribution('api.chat.tools_used', toolUsageCount)
-              Sentry.metrics.distribution('api.chat.text_chunks', textChunkCount)
-              Sentry.metrics.increment('api.chat.success', 1)
+              metrics.distribution('api.chat.tools_used', toolUsageCount)
+              metrics.distribution('api.chat.text_chunks', textChunkCount)
+              metrics.increment('api.chat.success', 1)
               controller.enqueue(encoder.encode(
                 `data: ${JSON.stringify({ type: 'done' })}\n\n`
               ))
@@ -192,7 +193,7 @@ export async function POST(request: Request) {
                 tags: { endpoint: '/api/chat', result: message.subtype },
                 extra: { messageType: message.type, subtype: message.subtype }
               })
-              Sentry.metrics.increment('api.chat.query_error', 1, {
+              metrics.increment('api.chat.query_error', 1, {
                 tags: { subtype: message.subtype }
               })
               controller.enqueue(encoder.encode(
@@ -213,7 +214,7 @@ export async function POST(request: Request) {
               streamDurationMs: Date.now() - streamStartTime
             }
           })
-          Sentry.metrics.increment('api.chat.stream_error', 1)
+          metrics.increment('api.chat.stream_error', 1)
           controller.enqueue(encoder.encode(
             `data: ${JSON.stringify({ type: 'error', message: 'Stream error occurred' })}\n\n`
           ))
@@ -237,8 +238,8 @@ export async function POST(request: Request) {
       tags: { endpoint: '/api/chat', error: 'unhandled' },
       extra: { requestDurationMs: requestDuration }
     })
-    Sentry.metrics.increment('api.chat.unhandled_error', 1)
-    Sentry.metrics.distribution('api.chat.error_response_time', requestDuration, {
+    metrics.increment('api.chat.unhandled_error', 1)
+    metrics.distribution('api.chat.error_response_time', requestDuration, {
       unit: 'millisecond'
     })
 
